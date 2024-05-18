@@ -1,0 +1,22 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+pyrogram = { git = "git+https://github.com/KurimuzonAkuma/pyrogram.git" }
+pyyaml = "==6.0.1"
+tgcrypto = "==1.2.5"
+
+[requires]
+python_version = "3.12"
+python_full_version = "3.12.2"
+
+[sqlite]
+aiosqlite = "*"
+
+[postgres]
+asyncpg = "*"
+
+[mysql]
+aiomysql = "*"

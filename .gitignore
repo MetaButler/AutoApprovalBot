@@ -1,0 +1,6 @@
+alembic.ini
+config.yml
+*.db
+*.session
+*.session*
+**/__pycache__/

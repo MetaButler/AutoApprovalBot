@@ -1,0 +1,10 @@
+telegram:
+  api_id:
+  api_hash:
+  bot_token:
+  sudo_users: 
+    - 
+    - 
+database:
+  schema: sqlite+aiosqlite:///database.db
+misc:
