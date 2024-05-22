@@ -7,10 +7,12 @@ name = "pypi"
 pyrogram = { git = "git+https://github.com/KurimuzonAkuma/pyrogram.git" }
 pyyaml = "==6.0.1"
 tgcrypto = "==1.2.5"
+sqlalchemy = "*"
+aiosqlite = "*"
 
 [requires]
 python_version = "3.12"
-python_full_version = "3.12.2"
+python_full_version = "3.12.3"
 
 [sqlite]
 aiosqlite = "*"
