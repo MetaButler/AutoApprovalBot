@@ -110,3 +110,32 @@ async def set_welcome_msg(client, message):
         await message.reply_text(f"Welcome message updated successfully")
     else:
         await message.reply_text("Failed to update welcome message")
+
+@Client.on_message(filters.command("setwelcome") & filters.private)
+async def set_welcome_my_channel(client, message):
+    if len(message.command) < 3:
+        await message.reply_text("Usage: /setwelcome channel_id new welcome message")
+        return
+
+    try:
+        channel_id = int(message.command[1])
+    except ValueError:
+        await message.reply_text("Invalid channel ID. Please provide a valid numeric channel ID.")
+        return
+
+    new_message = " ".join(message.command[2:])
+    
+    try:
+        chat_member = await client.get_chat_member(channel_id, message.from_user.id)
+        if chat_member.status not in [ChatMemberStatus.OWNER, ChatMemberStatus.ADMINISTRATOR]:
+            await message.reply_text("You are not an owner or administrator of the specified channel.")
+            return
+        
+        update_success = await set_welcome_message(channel_id, new_message)
+
+        if update_success:
+            await message.reply_text("Welcome message updated successfully")
+        else:
+            await message.reply_text("Failed to update welcome message")
+    except Exception as e:
+        logger.error(f"An error occurred while setting the welcome message: {e}")
