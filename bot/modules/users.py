@@ -1,6 +1,8 @@
 from pyrogram import Client, filters, enums
-from pyrogram.types import ChatJoinRequest
+from pyrogram.types import ChatJoinRequest, InlineKeyboardButton, InlineKeyboardMarkup, ChatPermissions, CallbackQuery
 from pyrogram.enums import ChatMemberStatus, ParseMode
+import random
+import base64
 
 from bot import logger
 from bot.database.users import (
@@ -28,32 +30,89 @@ async def req_accept(client, message: ChatJoinRequest):
         welcome_setting = True
     
     if welcome_setting:
-        welcome_text = await get_welcome_message(chat_id)  # Change here
+        welcome_text = await get_welcome_message(chat_id)
         welcome_text = welcome_text.format(user=message.from_user.mention, chat=message.chat.title)
 
         try:
-            await client.send_message(user_id, welcome_text)
-        except Exception as e:
-            if "PEER_ID_INVALID" in str(e):
-                logger.warning(f"User {user_id} has not interacted with the bot. Sending welcome message to the group/channel instead.")
-
-                chat = await client.get_chat(chat_id)
-
-                welcome_message = await get_welcome_message(chat_id)
-
-                welcome_text = welcome_message if welcome_message else welcome_text
-                welcome_text = welcome_text.format(user=message.from_user.mention, chat=message.chat.title)
-
-                if message.chat.type in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
-                    await client.send_message(chat_id, welcome_text, parse_mode=ParseMode.HTML)
+            if message.chat.type == enums.ChatType.CHANNEL:
+                await client.send_message(user_id, welcome_text)
             else:
-                logger.error(f"An error occurred: {e}")
+                await client.restrict_chat_member(chat_id, user_id, ChatPermissions(can_send_messages=False))
+                welcome_message = await client.send_message(chat_id, f"Welcome, {message.from_user.mention}. Please verify yourself.")
+
+                button = InlineKeyboardButton("Verify", url=f"https://t.me/{client.me.username}?start=verify_{base64.b64encode(f'{chat_id}:{user_id}:{welcome_message.id}'.encode()).decode()}")
+
+                reply_markup = InlineKeyboardMarkup([[button]])
+                await client.edit_message_reply_markup(chat_id, welcome_message.id, reply_markup=reply_markup)
+        except Exception as e:
+            logger.error(f"An error occurred: {e}")
+
+@Client.on_message(filters.command("start") & filters.private)
+async def start_verification(client, message):
+    args = base64.b64decode(message.text.split("_")[1].encode()).decode().split(":")
+    if len(args) != 3:
+        return
+
+    chat_id = int(args[0])
+    user_id = int(args[1])
+    message_id = int(args[2])
+
+    if message.from_user.id != user_id:
+        await message.reply_text("This verification link is not meant for you.")
+        return
+    
+    num1 = random.randint(1, 10)
+    num2 = random.randint(1, 10)
+    correct_answer = num1 + num2
+
+    buttons = [InlineKeyboardButton(str(correct_answer), callback_data=f"captcha_{chat_id}_{user_id}_{message_id}_correct")]
+    for _ in range(5):
+        wrong_answer = random.randint(1, 20)
+        while wrong_answer == correct_answer:
+            wrong_answer = random.randint(1, 20)
+        buttons.append(InlineKeyboardButton(str(wrong_answer), callback_data=f"captcha_{chat_id}_{user_id}_wrong"))
+
+    random.shuffle(buttons)
+    reply_markup = InlineKeyboardMarkup([buttons[i:i+3] for i in range(0, len(buttons), 3)])
+
+    await client.send_message(user_id, f"Solve the captcha: {num1} + {num2} = ?", reply_markup=reply_markup)
+
+@Client.on_callback_query()
+async def on_callback_query(client, callback_query):
+    data = callback_query.data.split("_")
+    if len(data) != 5:
+        return
+
+    chat_id = int(data[1])
+    user_id = int(data[2])
+    message_id = int(data[3])
+    answer = data[4]
+
+    if callback_query.from_user.id != user_id:
+        await callback_query.answer("This button is not meant for you.", show_alert=True)
+        return
+    
+    if answer == "correct":
+        await client.restrict_chat_member(chat_id, user_id, ChatPermissions(can_send_messages=True))
+
+        chat = await client.get_chat(chat_id)
+
+        welcome_text = await get_welcome_message(chat_id)
+        welcome_text = welcome_text.format(user=callback_query.from_user.mention, chat=chat.title)
+        await client.edit_message_text(chat_id, message_id, welcome_text, parse_mode=ParseMode.HTML)
+
+        await client.delete_messages(user_id, callback_query.message.id)
+
+        await callback_query.answer("Verification successful! You are now unmuted.", show_alert=False)
+    else:
+        await callback_query.answer("Incorrect answer. Please try again.", show_alert=True)
 
 @Client.on_chat_member_updated()
 async def farewell(client, update):
     if (
         not update.new_chat_member
         or update.new_chat_member.status is ChatMemberStatus.BANNED 
+
     ):
         user_id = update.old_chat_member.user.id
         chat_id = update.chat.id

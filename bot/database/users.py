@@ -136,3 +136,15 @@ async def get_welcome_message(group_id: int) -> str:
     except SQLAlchemyError as e:
         logger.error(f"Error in get_welcome_message: {e}")
         return ACCEPTED_TEXT
+
+async def get_users_in_channel_or_group(channel_or_group_id: int) -> list[int]:
+    try:
+        async with async_session() as session:
+            result = await session.execute(
+                select(UserChannelSettings.user_id).filter_by(channel_id=channel_or_group_id)
+            )
+            users = result.scalars().all()
+            return users
+    except SQLAlchemyError as e:
+        logger.error(f"Error fetching users in channel or group {channel_or_group_id}: {e}")
+        return []
