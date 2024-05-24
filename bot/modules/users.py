@@ -3,7 +3,7 @@ from pyrogram.types import ChatJoinRequest, InlineKeyboardButton, InlineKeyboard
 from pyrogram.enums import ChatMemberStatus, ParseMode
 import random
 import base64
-
+from pyrogram.enums import ChatType
 from bot import logger
 from bot.database.users import (
     update_user_channel_settings, update_welcome_setting, get_welcome_setting,
@@ -47,36 +47,6 @@ async def req_accept(client, message: ChatJoinRequest):
         except Exception as e:
             logger.error(f"An error occurred: {e}")
 
-@Client.on_message(filters.command("start") & filters.private)
-async def start_verification(client, message):
-    args = base64.b64decode(message.text.split("_")[1].encode()).decode().split(":")
-    if len(args) != 3:
-        return
-
-    chat_id = int(args[0])
-    user_id = int(args[1])
-    message_id = int(args[2])
-
-    if message.from_user.id != user_id:
-        await message.reply_text("This verification link is not meant for you.")
-        return
-    
-    num1 = random.randint(1, 10)
-    num2 = random.randint(1, 10)
-    correct_answer = num1 + num2
-
-    buttons = [InlineKeyboardButton(str(correct_answer), callback_data=f"captcha_{chat_id}_{user_id}_{message_id}_correct")]
-    for _ in range(5):
-        wrong_answer = random.randint(1, 20)
-        while wrong_answer == correct_answer:
-            wrong_answer = random.randint(1, 20)
-        buttons.append(InlineKeyboardButton(str(wrong_answer), callback_data=f"captcha_{chat_id}_{user_id}_wrong"))
-
-    random.shuffle(buttons)
-    reply_markup = InlineKeyboardMarkup([buttons[i:i+3] for i in range(0, len(buttons), 3)])
-
-    await client.send_message(user_id, f"Solve the captcha: {num1} + {num2} = ?", reply_markup=reply_markup)
-
 @Client.on_callback_query()
 async def on_callback_query(client, callback_query):
     data = callback_query.data.split("_")
@@ -103,7 +73,7 @@ async def on_callback_query(client, callback_query):
 
         await client.delete_messages(user_id, callback_query.message.id)
 
-        await callback_query.answer("Verification successful! You are now unmuted.", show_alert=False)
+        await callback_query.answer("Verification successful! You are now unmuted.", show_alert=True)
     else:
         await callback_query.answer("Incorrect answer. Please try again.", show_alert=True)
 
