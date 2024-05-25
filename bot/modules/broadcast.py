@@ -1,6 +1,8 @@
 from datetime import datetime
 from pyrogram import Client, filters
 from pyrogram.enums import ChatMemberStatus
+from pyrogram.errors import FloodWait
+import asyncio
 import time
 from datetime import datetime, timedelta
 from bot import logger
@@ -45,6 +47,8 @@ async def broadcast_message(client, message):
             try:
                 await client.send_message(user_id, broadcast_message)
                 success_count += 1
+            except FloodWait as e:
+                asyncio.sleep(e.x)
             except Exception as e:
                 failed_count += 1
                 logger.error(f"Failed to send broadcast to {user_id}: {e}")
