@@ -21,6 +21,10 @@ async def broadcast_message(client, message):
         await message.reply_text("Invalid channel or group ID. Please provide a valid numeric ID.")
         return
 
+    if not str(channel_or_group_id).startswith("-100"):
+        await message.reply_text("The specified ID is not a supergroup or channel. Please provide a valid ID.")
+        return
+    
     if not await can_broadcast(channel_or_group_id):
         await message.reply_text("Broadcast limit reached for the specified channel or group. Try again after 24 hours from previous broadcast")
         logger.info(f"Broadcast limit reached for group_id {channel_or_group_id}.")
@@ -33,6 +37,13 @@ async def broadcast_message(client, message):
         if chat_member.status not in [ChatMemberStatus.OWNER, ChatMemberStatus.ADMINISTRATOR]:
             await message.reply_text("You are not an owner or administrator of the specified channel or group.")
             return
+        
+        chat = await client.get_chat(channel_or_group_id)
+        chat_title = chat.title
+        chat_id = chat.id
+
+        unique_id = str(channel_or_group_id)[4:]
+        chat_link = f"https://t.me/c/{unique_id}"
 
         user_ids = await get_users_in_channel_or_group(channel_or_group_id)
         if not user_ids:
@@ -45,7 +56,7 @@ async def broadcast_message(client, message):
 
         for user_id in user_ids:
             try:
-                await client.send_message(user_id, broadcast_message)
+                await client.send_message(user_id, f"Broadcast from [{chat_title}]({chat_link}):\n\n{broadcast_message}")
                 success_count += 1
             except FloodWait as e:
                 asyncio.sleep(e.x)
