@@ -1,12 +1,14 @@
 from datetime import datetime
 from pyrogram import Client, filters
 from pyrogram.enums import ChatMemberStatus
-
+import time
+from datetime import datetime, timedelta
 from bot import logger
-from bot.database.users import get_users_in_channel_or_group
+from bot.database.users import get_users_in_channel_or_group, can_broadcast
 
 @Client.on_message(filters.command("broadcast") & filters.private)
 async def broadcast_message(client, message):
+       
     if len(message.command) < 3:
         await message.reply_text("Usage: /broadcast channel_or_group_id message")
         return
@@ -17,6 +19,11 @@ async def broadcast_message(client, message):
         await message.reply_text("Invalid channel or group ID. Please provide a valid numeric ID.")
         return
 
+    if not await can_broadcast(channel_or_group_id):
+        await message.reply_text("Broadcast limit reached for the specified channel or group. Try again after 24 hours from previous broadcast")
+        logger.info(f"Broadcast limit reached for group_id {channel_or_group_id}.")
+        return False
+    
     broadcast_message = " ".join(message.command[2:])
 
     try:

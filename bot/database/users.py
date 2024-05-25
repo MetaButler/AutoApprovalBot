@@ -1,5 +1,6 @@
 import datetime
 from typing import Optional, List
+from datetime import datetime, timedelta
 
 from pyrogram.types import User
 import sqlalchemy
@@ -37,14 +38,16 @@ class GroupSettings(BASE):
     group_id = Column(sqlalchemy.BigInteger, nullable=False)
     welcome_on = Column(sqlalchemy.Boolean, default=False)
     welcome_message = Column(sqlalchemy.String, default=ACCEPTED_TEXT)
+    last_broadcast_time = Column(DateTime, default=None)  # Add this line
 
-    def __init__(self, group_id: int, welcome_on: bool, welcome_message: str = ACCEPTED_TEXT):
+    def __init__(self, group_id: int, welcome_on: bool, welcome_message: str = ACCEPTED_TEXT, last_broadcast_time: datetime = None):
         self.group_id = group_id
         self.welcome_on = welcome_on
         self.welcome_message = welcome_message
+        self.last_broadcast_time = last_broadcast_time
 
     def __repr__(self):
-        return f"<GroupSettings group_id={self.group_id} welcome_on={self.welcome_on}> welcome_message={self.welcome_message}>"
+        return f"<GroupSettings group_id={self.group_id} welcome_on={self.welcome_on} last_broadcast_time={self.last_broadcast_time}> welcome_message={self.welcome_message}>"
 
 async def get_or_create(session, model, defaults=None, **kwargs):
     instance = await session.execute(select(model).filter_by(**kwargs))
@@ -148,3 +151,33 @@ async def get_users_in_channel_or_group(channel_or_group_id: int) -> list[int]:
     except SQLAlchemyError as e:
         logger.error(f"Error fetching users in channel or group {channel_or_group_id}: {e}")
         return []
+    
+async def can_broadcast(group_id: int) -> bool:
+    try:
+        async with async_session() as session:
+            group_settings_result = await session.execute(
+                select(GroupSettings).filter_by(group_id=group_id)
+            )
+            group_settings = group_settings_result.scalar_one_or_none()
+
+            if group_settings:
+                last_broadcast_time = group_settings.last_broadcast_time
+                if last_broadcast_time:
+                    next_allowed_time = last_broadcast_time + timedelta(days=1)
+                    if datetime.utcnow() < next_allowed_time:
+                        return False
+
+                group_settings.last_broadcast_time = datetime.utcnow()
+            else:
+                group_settings = GroupSettings(
+                    group_id=group_id, 
+                    welcome_on=False,  # Default value if welcome_on is not used
+                    last_broadcast_time=datetime.utcnow()
+                )
+                session.add(group_settings)
+
+            await session.commit()
+            return True
+    except SQLAlchemyError as e:
+        logger.error(f"Error in can_broadcast: {e}")
+        return False
