@@ -52,3 +52,13 @@ async def start(client, message):
         reply_markup = InlineKeyboardMarkup(buttons)
         
         await message.reply_text(bot_info, reply_markup=reply_markup)
+
+@Client.on_message(filters.command("help") & (filters.private))
+async def help_command(client, message):
+    help_text = (
+        "Here are the available commands:\n\n"
+        "/welcome on/off - Turn the welcome message on or off in a group.\n"
+        "/setwelcome Your Welcome Message Here - Set a custom welcome message for new members in a group.\n"
+        "/broadcast channel_or_group_id message - Broadcast a message to all users in a specified channel or group (admins only).\n"
+    )
+    await message.reply_text(help_text)
