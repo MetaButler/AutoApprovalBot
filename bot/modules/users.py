@@ -37,13 +37,18 @@ async def req_accept(client, message: ChatJoinRequest):
             if message.chat.type == enums.ChatType.CHANNEL:
                 await client.send_message(user_id, welcome_text)
             else:
-                await client.restrict_chat_member(chat_id, user_id, ChatPermissions(can_send_messages=False))
-                welcome_message = await client.send_message(chat_id, f"Welcome, {message.from_user.mention}. Please verify yourself.")
+                if message.chat.type == enums.ChatType.SUPERGROUP:
 
-                button = InlineKeyboardButton("Verify", url=f"https://t.me/{client.me.username}?start=verify_{base64.b64encode(f'{chat_id}:{user_id}:{welcome_message.id}'.encode()).decode()}")
+                    await client.restrict_chat_member(chat_id, user_id, ChatPermissions(can_send_messages=False))
+                    welcome_message = await client.send_message(chat_id, f"Welcome, {message.from_user.mention}. Please verify yourself.")
 
-                reply_markup = InlineKeyboardMarkup([[button]])
-                await client.edit_message_reply_markup(chat_id, welcome_message.id, reply_markup=reply_markup)
+                    button = InlineKeyboardButton("Verify", url=f"https://t.me/{client.me.username}?start=verify_{base64.b64encode(f'{chat_id}:{user_id}:{welcome_message.id}'.encode()).decode()}")
+
+                    reply_markup = InlineKeyboardMarkup([[button]])
+                    await client.edit_message_reply_markup(chat_id, welcome_message.id, reply_markup=reply_markup)
+                else:
+                    await client.send_message(chat_id, welcome_text)
+
         except Exception as e:
             logger.error(f"An error occurred: {e}")
 
