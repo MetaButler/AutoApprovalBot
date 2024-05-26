@@ -8,9 +8,10 @@ from datetime import datetime, timedelta
 from bot import logger
 from bot.database.users import get_users_in_channel_or_group, can_broadcast
 
+
 @Client.on_message(filters.command("broadcast") & filters.private)
 async def broadcast_message(client, message):
-       
+
     if len(message.command) < 3:
         await message.reply_text("Usage: /broadcast channel_or_group_id message")
         return
@@ -18,26 +19,39 @@ async def broadcast_message(client, message):
     try:
         channel_or_group_id = int(message.command[1])
     except ValueError:
-        await message.reply_text("Invalid channel or group ID. Please provide a valid numeric ID.")
+        await message.reply_text(
+            "Invalid channel or group ID. Please provide a valid numeric ID."
+        )
         return
 
     if not str(channel_or_group_id).startswith("-100"):
-        await message.reply_text("The specified ID is not a supergroup or channel. Please provide a valid ID.")
+        await message.reply_text(
+            "The specified ID is not a supergroup or channel. Please provide a valid ID."
+        )
         return
-    
+
     if not await can_broadcast(channel_or_group_id):
-        await message.reply_text("Broadcast limit reached for the specified channel or group. Try again after 24 hours from previous broadcast")
+        await message.reply_text(
+            "Broadcast limit reached for the specified channel or group. Try again after 24 hours from previous broadcast"
+        )
         logger.info(f"Broadcast limit reached for group_id {channel_or_group_id}.")
         return False
-    
+
     broadcast_message = " ".join(message.command[2:])
 
     try:
-        chat_member = await client.get_chat_member(channel_or_group_id, message.from_user.id)
-        if chat_member.status not in [ChatMemberStatus.OWNER, ChatMemberStatus.ADMINISTRATOR]:
-            await message.reply_text("You are not an owner or administrator of the specified channel or group.")
+        chat_member = await client.get_chat_member(
+            channel_or_group_id, message.from_user.id
+        )
+        if chat_member.status not in [
+            ChatMemberStatus.OWNER,
+            ChatMemberStatus.ADMINISTRATOR,
+        ]:
+            await message.reply_text(
+                "You are not an owner or administrator of the specified channel or group."
+            )
             return
-        
+
         chat = await client.get_chat(channel_or_group_id)
         chat_title = chat.title
         chat_id = chat.id
@@ -47,7 +61,9 @@ async def broadcast_message(client, message):
 
         user_ids = await get_users_in_channel_or_group(channel_or_group_id)
         if not user_ids:
-            await message.reply_text("No users found in the specified channel or group.")
+            await message.reply_text(
+                "No users found in the specified channel or group."
+            )
             return
 
         start_time = datetime.now()
@@ -56,7 +72,10 @@ async def broadcast_message(client, message):
 
         for user_id in user_ids:
             try:
-                await client.send_message(user_id, f"Broadcast from [{chat_title}]({chat_link}):\n\n{broadcast_message}")
+                await client.send_message(
+                    user_id,
+                    f"Broadcast from [{chat_title}]({chat_link}):\n\n{broadcast_message}",
+                )
                 success_count += 1
             except FloodWait as e:
                 asyncio.sleep(e.x)
